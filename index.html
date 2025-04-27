@@ -3,76 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI图片生成器</title>
-    <style>
-        /* 保留原有样式... */
-    </style>
+    <title>提示词生图</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 保留原有HTML结构... -->
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 保留原有变量获取...
-            
-            generateBtn.addEventListener('click', function() {
-                const prompt = promptInput.value.trim();
-                
-                if (!prompt) {
-                    alert('请输入提示词');
-                    return;
-                }
-                
-                loadingElement.style.display = 'block';
-                resultSection.style.display = 'none';
-                errorMsg.style.display = 'none';
-                
-                // 方法1：使用CORS代理
-                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-                const apiUrl = `https://npi.lazy52.com/api/draw/?prompt=${encodeURIComponent(prompt)}`;
-                
-                // 方法2：直接请求但需要服务器支持CORS
-                // const apiUrl = `https://npi.lazy52.com/api/draw/?prompt=${encodeURIComponent(prompt)}&callback=?`;
-                
-                // 添加时间戳缓存对策
-                const finalUrl = `${proxyUrl}${apiUrl}&_=${new Date().getTime()}`;
-                
-                fetch(finalUrl, {
-                    headers: {
-                        // 如果需要可以添加API密钥等
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('网络响应不正常');
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'completed' && data.image_url) {
-                        // 处理可能的转义字符
-                        let imageUrl = data.image_url.replace(/\\\//g, '/');
-                        generatedImage.src = imageUrl;
-                        promptText.textContent = `提示词: ${data.prompt}`;
-                        resultSection.style.display = 'block';
-                    } else {
-                        throw new Error('API返回数据不完整');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    errorMsg.textContent = `生成失败: ${error.message}。请尝试更换提示词或稍后重试`;
-                    errorMsg.style.display = 'block';
-                    
-                    // 备用方案：直接打开API链接
-                    window.open(apiUrl, '_blank');
-                })
-                .finally(() => {
-                    loadingElement.style.display = 'none';
-                });
-            });
-            
-            // 保留原有回车键监听...
-        });
-    </script>
+    <h1>根据提示词生成图片</h1>
+
+    <div class="input-container">
+        <label for="promptInput">输入提示词：</label>
+        <input type="text" id="promptInput" placeholder="例如：画一只正在逮老鼠的猫">
+        <button id="generateButton">生成图片</button>
+    </div>
+
+    <div id="statusArea" class="status">
+        请输入提示词并点击生成。
+    </div>
+
+    <div id="imageResultArea" class="image-container" style="display: none;">
+        <h2>生成结果：</h2>
+        <img id="generatedImage" src="" alt="生成的图片">
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
