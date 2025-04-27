@@ -1,0 +1,98 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const promptInput = document.getElementById('promptInput');
+    const generateButton = document.getElementById('generateButton');
+    const statusArea = document.getElementById('statusArea');
+    const imageResultArea = document.getElementById('imageResultArea');
+    const generatedImage = document.getElementById('generatedImage');
+
+    generateButton.addEventListener('click', async () => {
+        const prompt = promptInput.value.trim();
+
+        if (!prompt) {
+            updateStatus('请输入有效的提示词。', 'error');
+            return;
+        }
+
+        // Disable button and show loading state
+        generateButton.disabled = true;
+        updateStatus('正在生成图片，请稍候...', 'loading');
+        imageResultArea.style.display = 'none'; // Hide previous result
+        generatedImage.src = ''; // Clear previous image
+
+        const baseURL = 'https://npi.lazy52.com/api/draw/?prompt=';
+        // Encode the prompt to be safely used in a URL
+        const encodedPrompt = encodeURIComponent(prompt);
+        const apiUrl = baseURL + encodedPrompt;
+
+        console.log("Requesting URL:", apiUrl); // For debugging
+
+        try {
+            const response = await fetch(apiUrl);
+
+            // Check if the request was successful (status code 2xx)
+            if (!response.ok) {
+                throw new Error(`API 请求失败，状态码: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("API Response Data:", data); // For debugging
+
+            if (data.status === "completed" && data.image_url) {
+                // IMPORTANT: Clean the image URL (replace \/ with /)
+                const imageUrl = data.image_url.replace(/\\\//g, '/');
+
+                console.log("Cleaned Image URL:", imageUrl); // For debugging
+
+                generatedImage.src = imageUrl;
+                generatedImage.alt = `生成的图片: ${data.prompt || prompt}`; // Set alt text
+
+                // Show the image area only after the image is loaded
+                generatedImage.onload = () => {
+                    imageResultArea.style.display = 'block';
+                    updateStatus('图片生成成功！', 'success');
+                    generateButton.disabled = false; // Re-enable button
+                };
+                // Handle cases where the image URL is valid but the image fails to load
+                generatedImage.onerror = () => {
+                    updateStatus('图片加载失败，请检查链接或稍后重试。', 'error');
+                     imageResultArea.style.display = 'none';
+                    generateButton.disabled = false; // Re-enable button
+                }
+
+            } else {
+                 // Handle API-specific errors or incomplete status
+                throw new Error(`API 未能成功完成任务。状态: ${data.status || '未知'}, 信息: ${data.message || '无'}`);
+            }
+
+        } catch (error) {
+            console.error("生成过程中发生错误:", error);
+            updateStatus(`发生错误: ${error.message}`, 'error');
+            imageResultArea.style.display = 'none';
+            generateButton.disabled = false; // Re-enable button on error
+        }
+    });
+
+    // Function to update status message and style
+    function updateStatus(message, type = 'info') {
+        statusArea.textContent = message;
+        // Reset classes first
+        statusArea.className = 'status';
+        // Add specific class based on type
+        if (type === 'loading') {
+            statusArea.classList.add('loading');
+        } else if (type === 'error') {
+            statusArea.classList.add('error');
+        } else if (type === 'success') {
+             statusArea.classList.add('success');
+        }
+         // 'info' type uses the default style
+    }
+
+    // Optional: Allow pressing Enter in the input field to trigger generation
+    promptInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent default form submission if it were in a form
+            generateButton.click(); // Trigger the button click
+        }
+    });
+});
