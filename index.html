@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI绘画生成器</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #prompt-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        #generate-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        #generate-btn:hover {
+            background-color: #2980b9;
+        }
+        #generate-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .result-area {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #loading {
+            display: none;
+            margin: 20px 0;
+            color: #7f8c8d;
+        }
+        #result-image {
+            max-width: 100%;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+            display: none;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI绘画生成器</h1>
+        
+        <div class="input-area">
+            <input type="text" id="prompt-input" placeholder="输入你想绘制的画面描述..." autofocus>
+            <button id="generate-btn">生成绘画</button>
+        </div>
+        
+        <div id="loading">生成中，请稍候...</div>
+        
+        <div class="result-area">
+            <img id="result-image" alt="生成的绘画">
+            <div id="error-message" class="error"></div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>使用AI技术生成绘画作品 · 由lazy52.com提供API支持</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const promptInput = document.getElementById('prompt-input');
+            const generateBtn = document.getElementById('generate-btn');
+            const loading = document.getElementById('loading');
+            const resultImage = document.getElementById('result-image');
+            const errorMessage = document.getElementById('error-message');
+            
+            generateBtn.addEventListener('click', generateImage);
+            promptInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    generateImage();
+                }
+            });
+            
+            function generateImage() {
+                const prompt = promptInput.value.trim();
+                
+                if (!prompt) {
+                    showError('请输入绘画描述');
+                    return;
+                }
+                
+                // 清空之前的结果和错误
+                resultImage.style.display = 'none';
+                errorMessage.style.display = 'none';
+                
+                // 显示加载状态
+                loading.style.display = 'block';
+                generateBtn.disabled = true;
+                
+                // 构建API URL
+                const apiUrl = `https://npi.lazy52.com/api/draw/?prompt=${encodeURIComponent(prompt)}`;
+                
+                // 创建缓存破坏参数（避免浏览器缓存）
+                const timestamp = new Date().getTime();
+                const uniqueUrl = `${apiUrl}&nocache=${timestamp}`;
+                
+                // 创建图片元素（使用预加载）
+                const img = new Image();
+                
+                img.onload = function() {
+                    // 图片加载成功
+                    resultImage.src = this.src;
+                    resultImage.style.display = 'block';
+                    loading.style.display = 'none';
+                    generateBtn.disabled = false;
+                };
+                
+                img.onerror = function() {
+                    // 图片加载失败
+                    showError('生成失败，请稍后重试或尝试其他描述');
+                    loading.style.display = 'none';
+                    generateBtn.disabled = false;
+                };
+                
+                // 开始加载图片
+                img.src = uniqueUrl;
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                loading.style.display = 'none';
+                generateBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
