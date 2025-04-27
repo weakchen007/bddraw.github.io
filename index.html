@@ -2,29 +2,160 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>提示词生图</title>
-    <link rel="stylesheet" href="style.css">
+    <title>AI 绘画生成器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f7;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .result {
+            margin-top: 20px;
+            min-height: 200px;
+            position: relative;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ddd;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+
+        .image-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .generated-image {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body>
-
-    <h1>根据提示词生成图片</h1>
-
-    <div class="input-container">
-        <label for="promptInput">输入提示词：</label>
-        <input type="text" id="promptInput" placeholder="例如：画一只正在逮老鼠的猫">
-        <button id="generateButton">生成图片</button>
+    <div class="container">
+        <h1>AI 绘画生成器</h1>
+        <div class="input-group">
+            <input type="text" id="promptInput" placeholder="请输入绘画提示词（例如：画一只正在逮老鼠的猫）">
+            <button onclick="generateImage()">生成</button>
+        </div>
+        <div class="loading" id="loading">生成中...</div>
+        <div class="error" id="error"></div>
+        <div class="result" id="result"></div>
     </div>
 
-    <div id="statusArea" class="status">
-        请输入提示词并点击生成。
-    </div>
+    <script>
+        function generateImage() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
 
-    <div id="imageResultArea" class="image-container" style="display: none;">
-        <h2>生成结果：</h2>
-        <img id="generatedImage" src="" alt="生成的图片">
-    </div>
+            if (!prompt) {
+                errorDiv.textContent = '请输入有效的提示词';
+                return;
+            }
 
-    <script src="script.js"></script>
+            // 重置状态
+            errorDiv.textContent = '';
+            resultDiv.innerHTML = '';
+            loadingDiv.style.display = 'block';
+
+            // 构建API URL
+            const apiUrl = `https://npi.lazy52.com/api/draw/?prompt=${encodeURIComponent(prompt)}`;
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'completed' && data.image_url) {
+                        const img = document.createElement('img');
+                        img.src = data.image_url;
+                        img.className = 'generated-image';
+                        img.onload = () => {
+                            loadingDiv.style.display = 'none';
+                            resultDiv.appendChild(img);
+                        };
+                        img.onerror = () => {
+                            loadingDiv.style.display = 'none';
+                            errorDiv.textContent = '图片加载失败';
+                        };
+                    } else {
+                        throw new Error('生成失败');
+                    }
+                })
+                .catch(error => {
+                    loadingDiv.style.display = 'none';
+                    errorDiv.textContent = '生成失败，请稍后再试';
+                    console.error('Error:', error);
+                });
+        }
+
+        // 支持回车键触发
+        document.getElementById('promptInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateImage();
+            }
+        });
+    </script>
 </body>
 </html>
