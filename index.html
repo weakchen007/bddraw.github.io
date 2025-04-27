@@ -5,147 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI图片生成器</title>
     <style>
-        /* CSS样式部分 */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Arial', sans-serif;
-        }
-        
-        body {
-            background-color: #f5f5f5;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-        }
-        
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .input-section {
-            display: flex;
-            margin-bottom: 20px;
-        }
-        
-        #prompt-input {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            outline: none;
-        }
-        
-        #prompt-input:focus {
-            border-color: #4a90e2;
-        }
-        
-        #generate-btn {
-            background-color: #4a90e2;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 12px 20px;
-            margin-left: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        
-        #generate-btn:hover {
-            background-color: #3a7bc8;
-        }
-        
-        .result-section {
-            display: none;
-            margin-top: 30px;
-            text-align: center;
-        }
-        
-        #generated-image {
-            max-width: 100%;
-            max-height: 500px;
-            border-radius: 5px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top: 4px solid #4a90e2;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .error {
-            color: #e74c3c;
-            text-align: center;
-            margin-top: 20px;
-            display: none;
-        }
+        /* 保留原有样式... */
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>AI图片生成器</h1>
-        
-        <div class="input-section">
-            <input type="text" id="prompt-input" placeholder="请输入提示词，例如：画一只正在逮老鼠的猫">
-            <button id="generate-btn">生成图片</button>
-        </div>
-        
-        <div class="loading">
-            <div class="spinner"></div>
-            <p>正在生成图片，请稍候...</p>
-        </div>
-        
-        <div class="error" id="error-msg">
-            生成图片时出错，请重试或检查提示词
-        </div>
-        
-        <div class="result-section" id="result-section">
-            <h2>生成结果</h2>
-            <div>
-                <img id="generated-image" alt="生成的图片">
-            </div>
-            <p id="prompt-text"></p>
-        </div>
-    </div>
+    <!-- 保留原有HTML结构... -->
 
     <script>
-        // JavaScript功能部分
         document.addEventListener('DOMContentLoaded', function() {
-            const promptInput = document.getElementById('prompt-input');
-            const generateBtn = document.getElementById('generate-btn');
-            const loadingElement = document.querySelector('.loading');
-            const resultSection = document.getElementById('result-section');
-            const generatedImage = document.getElementById('generated-image');
-            const promptText = document.getElementById('prompt-text');
-            const errorMsg = document.getElementById('error-msg');
+            // 保留原有变量获取...
             
             generateBtn.addEventListener('click', function() {
                 const prompt = promptInput.value.trim();
@@ -155,46 +23,55 @@
                     return;
                 }
                 
-                // 显示加载状态
                 loadingElement.style.display = 'block';
                 resultSection.style.display = 'none';
                 errorMsg.style.display = 'none';
                 
-                // 构建API URL
+                // 方法1：使用CORS代理
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
                 const apiUrl = `https://npi.lazy52.com/api/draw/?prompt=${encodeURIComponent(prompt)}`;
                 
-                // 发送请求
-                fetch(apiUrl)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('网络响应不正常');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.status === 'completed' && data.image_url) {
-                            generatedImage.src = data.image_url;
-                            promptText.textContent = `提示词: ${data.prompt}`;
-                            resultSection.style.display = 'block';
-                        } else {
-                            throw new Error('API返回数据不完整');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        errorMsg.style.display = 'block';
-                    })
-                    .finally(() => {
-                        loadingElement.style.display = 'none';
-                    });
+                // 方法2：直接请求但需要服务器支持CORS
+                // const apiUrl = `https://npi.lazy52.com/api/draw/?prompt=${encodeURIComponent(prompt)}&callback=?`;
+                
+                // 添加时间戳缓存对策
+                const finalUrl = `${proxyUrl}${apiUrl}&_=${new Date().getTime()}`;
+                
+                fetch(finalUrl, {
+                    headers: {
+                        // 如果需要可以添加API密钥等
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('网络响应不正常');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'completed' && data.image_url) {
+                        // 处理可能的转义字符
+                        let imageUrl = data.image_url.replace(/\\\//g, '/');
+                        generatedImage.src = imageUrl;
+                        promptText.textContent = `提示词: ${data.prompt}`;
+                        resultSection.style.display = 'block';
+                    } else {
+                        throw new Error('API返回数据不完整');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    errorMsg.textContent = `生成失败: ${error.message}。请尝试更换提示词或稍后重试`;
+                    errorMsg.style.display = 'block';
+                    
+                    // 备用方案：直接打开API链接
+                    window.open(apiUrl, '_blank');
+                })
+                .finally(() => {
+                    loadingElement.style.display = 'none';
+                });
             });
             
-            // 按下回车键也可以触发生成
-            promptInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    generateBtn.click();
-                }
-            });
+            // 保留原有回车键监听...
         });
     </script>
 </body>
