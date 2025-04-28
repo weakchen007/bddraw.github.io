@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>实时绘画生成器</title>
+    <title>智能绘画生成器</title>
     <style>
         :root {
             --primary: #2d8cf0;
             --hover: #57a3f3;
+            --error: #f56c6c;
         }
         body {
             font-family: -apple-system, system-ui, sans-serif;
@@ -61,6 +62,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            text-align: center;
         }
         .loader {
             width: 40px;
@@ -85,22 +87,29 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .error {
-            color: #f56c6c;
+            color: var(--error);
             margin-top: 1rem;
             display: none;
+            padding: 12px;
+            background: #fee;
+            border-radius: 6px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎨 实时绘画生成器</h1>
+        <h1>🎨 智能绘画生成器</h1>
         <div class="input-group">
-            <input type="text" id="promptInput" placeholder="输入绘画描述（例如：山间桃花环绕的亭子）">
+            <input type="text" 
+                   id="promptInput" 
+                   placeholder="输入绘画描述（例如：山间桃花环绕的亭子）"
+                   autocomplete="off">
             <button onclick="generateImage()">立即生成</button>
         </div>
         <div class="result-area">
             <div id="loading">
-                <div class="loader"></div>
+               loader"></divloader"></div>
+                <div style="margin-top:12px;color:#666">生成中...</div>
             </div>
             <div id="imageContainer">
                 <img id="outputImage" alt="生成的绘画作品">
@@ -110,45 +119,91 @@
     </div>
 
     <script>
+        let controller = null;
+
         async function generateImage() {
             const prompt = document.getElementById('promptInput').value.trim();
             const loading = document.getElementById('loading');
             const imageContainer = document.getElementById('imageContainer');
             const errorMsg = document.getElementById('errorMsg');
             
-            if (!prompt) {
-                showError('请输入有效的描述内容');
-                return;
-            }
+            // 取消进行中的请求
+            if(controller) controller.abort();
+            controller = new AbortController();
 
             // 重置状态
             imageContainer.style.display = 'none';
             errorMsg.style.display = 'none';
-            loading.style.display = 'block';
-
+            loading.style.display = 'flex';
+            
             try {
-                const apiUrl = `https://npi.lazy52.com/api/flux/?msg=${encodeURIComponent(prompt)}`;
-                
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('请求失败');
-                
-                const blob = await response.blob();
-                if (!blob.type.startsWith('image/')) throw new Error('无效的图片格式');
+                if (!prompt) throw new Error('请输入有效的描述内容');
 
-                const imgUrl = URL.createObjectURL(blob);
-                document.getElementById('outputImage').src = imgUrl;
+                // 构建API请求（可选使用CORS代理）
+                const baseUrl = 'https://npi.lazy52.com/api/flux';
+                // const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; // 备用代理
+                const apiUrl = `${baseUrl}/?msg=${encodeURIComponent(prompt)}`;
                 
-                imageContainer.style.display = 'block';
-                loading.style.display = 'none';
+                console.log('请求URL:', apiUrl);
+                const response = await fetch(apiUrl, {
+                    signal: controller.signal
+                });
+                
+                console.log('响应状态:', response.status, response.statusText);
+                const contentType = response.headers.get('content-type');
+                console.log('内容类型:', contentType);
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`请求失败：${response.status} ${text.slice(0,50)}`);
+                }
+
+                // 处理不同响应类型
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (!data.image_url) throw new Error('API返回数据异常');
+                    showImage(data.image_url);
+                } 
+                else if (contentType.startsWith('image/')) {
+                    const blob = await response.blob();
+                    const imgUrl = URL.createObjectURL(blob);
+                    showImage(imgUrl);
+                }
+                else {
+                    throw new Error(`不支持的响应格式：${contentType}`);
+                }
+
             } catch (error) {
-                showError('生成失败，请稍后重试');
-                console.error('生成错误:', error);
+                if (error.name === 'AbortError') {
+                    console.log('请求已取消');
+                    return;
+                }
+                showError(error.message);
+                console.error('错误详情:', error);
             }
+        }
+
+        function showImage(url) {
+            const img = document.getElementById('outputImage');
+            // 释放之前创建的URL
+            if(img.dataset.objectUrl) {
+                URL.revokeObjectURL(img.dataset.objectUrl);
+                delete img.dataset.objectUrl;
+            }
+            
+            // 标记并设置图片源
+            if(url.startsWith('blob:')) {
+                img.dataset.objectUrl = url;
+            }
+            img.src = url;
+            
+            document.getElementById('imageContainer').style.display = 'block';
+            loading.style.display = 'none';
         }
 
         function showError(message) {
             const errorMsg = document.getElementById('errorMsg');
-            errorMsg.textContent = message;
+            errorMsg.innerHTML = `⚠️ ${message}`;
             errorMsg.style.display = 'block';
             loading.style.display = 'none';
         }
