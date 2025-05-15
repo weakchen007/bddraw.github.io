@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能绘画生成器</title>
+    <style>
+        :root {
+            --primary: #2d8cf0;
+            --hover: #57a3f3;
+            --error: #f56c6c;
+        }
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+        #promptInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        #promptInput:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+        button {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: var(--hover);
+        }
+        .result-area {
+            position: relative;
+            min-height: 300px;
+            margin-top: 1.5rem;
+        }
+        #loading {
+            display: none; /* 初始隐藏 */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #imageContainer {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        #outputImage {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: var(--error);
+            margin-top: 1rem;
+            display: none;
+            padding: 12px;
+            background: #fee;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 智能绘画生成器</h1>
+        <div class="input-group">
+            <input type="text" 
+                   id="promptInput" 
+                   placeholder="输入绘画描述（例如：山间桃花环绕的亭子）"
+                   autocomplete="off">
+            <button onclick="generateImage()">立即生成</button>
+        </div>
+        <div class="result-area">
+            <div id="loading">
+                <div class="loader"></div>
+            </div>
+            <div id="imageContainer">
+                <img id="outputImage" alt="生成的绘画作品">
+            </div>
+            <div class="error" id="errorMsg"></div>
+        </div>
+    </div>
+
+    <script>
+        let controller = null;
+
+        async function generateImage() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            const loading = document.getElementById('loading');
+            const imageContainer = document.getElementById('imageContainer');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            // 取消进行中的请求
+            if(controller) controller.abort();
+            controller = new AbortController();
+
+            // 重置状态
+            imageContainer.style.display = 'none';
+            errorMsg.style.display = 'none';
+            loading.style.display = 'flex'; // 显示加载动画
+            
+            try {
+                if (!prompt) throw new Error('请输入有效的描述内容');
+
+                // 翻译为英文
+                const translatedPrompt = await translateToEnglish(prompt);
+
+                // 构建API请求（可选使用CORS代理）
+                const baseUrl = 'https://npi.lazy52.com/api/flux';
+                // const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; // 备用代理
+                const apiUrl = `${baseUrl}/?msg=${encodeURIComponent(translatedPrompt)}`; // 使用翻译后的提示语
+                
+                console.log('请求URL:', apiUrl);
+                const response = await fetch(apiUrl, {
+                    signal: controller.signal
+                });
+                
+                console.log('响应状态:', response.status, response.statusText);
+                const contentType = response.headers.get('content-type');
+                console.log('内容类型:', contentType);
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`请求失败：${response.status} ${text.slice(0,50)}`);
+                }
+
+                // 处理不同响应类型
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (!data.image_url) throw new Error('API返回数据异常');
+                    showImage(data.image_url);
+                } 
+                else if (contentType.startsWith('image/')) {
+                    const blob = await response.blob();
+                    const imgUrl = URL.createObjectURL(blob);
+                    showImage(imgUrl);
+                }
+                else {
+                    throw new Error(`不支持的响应格式：${contentType}`);
+                }
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('请求已取消');
+                    return;
+                }
+                showError(error.message);
+                console.error('错误详情:', error);
+            }
+        }
+
+        function showImage(url) {
+            const img = document.getElementById('outputImage');
+            // 释放之前创建的URL
+            if(img.dataset.objectUrl) {
+                URL.revokeObjectURL(img.dataset.objectUrl);
+                delete img.dataset.objectUrl;
+            }
+            
+            // 标记并设置图片源
+            if(url.startsWith('blob:')) {
+                img.dataset.objectUrl = url;
+            }
+            img.src = url;
+            
+            document.getElementById('imageContainer').style.display = 'block';
+            loading.style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.innerHTML = `⚠️ ${message}`;
+            errorMsg.style.display = 'block';
+            loading.style.display = 'none';
+        }
+
+        // 回车键支持
+        document.getElementById('promptInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') generateImage();
+        });
+
+        // 静默翻译（中→英）
+        async function translateToEnglish(text) {
+            if (!isChinese(text)) return text; // 如果是英文直接返回
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                return data[0][0][0]; // 提取翻译结果
+            } catch (err) {
+                console.error("翻译出错:", err);
+                showError("翻译服务暂时不可用，请尝试英文");
+                return text;  // 翻译失败则使用原始文本
+            }
+        }
+
+        // 判断是否为中文（简单正则）
+        function isChinese(text) {
+            return /[\u4e00-\u9fa5]/.test(text);
+        }
+    </script>
+</body>
+</html>
